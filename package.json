@@ -1,0 +1,27 @@
+{
+  "name": "smartdoc_processor",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start:upload_service": "pm2 start server.js --name image_upload_service",
+    "start:watchdog_new": "pm2 start watchdog_new.js",
+    "start:watchdog_ready": "pm2 start watchdog_ready.js",
+    "start:watchdog_processed": "pm2 start watchdog_processed.js",
+    "start:watchdog_classified": "pm2 start watchdog_classified.js",
+    "start:prod": "pm2 start server.js --name server && pm2 start watchdog_new.js --name watchdog_NEW && pm2 start watchdog_ready.js --name watchdog_READY && pm2 start watchdog_processed.js --name watchdog_PROCESSED && pm2 start watchdog_classified.js --name watchdog_CLASSIFIED"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1",
+    "ioredis": "^5.4.1",
+    "js-yaml": "^4.1.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemon": "^3.1.7",
+    "pm2": "^5.4.2"
+  }
+}
