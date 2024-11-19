@@ -1,8 +1,9 @@
-// Import the Redis client from redisClient.js
+
 const redisClient = require('./redisClient');
 const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
+const api = require('./api');
 
 // Watchdog interval in milliseconds (default to 5 seconds)
 const watchdogInterval = process.env.WATCHDOG_INTERVAL;
@@ -11,7 +12,6 @@ const watchdogInterval = process.env.WATCHDOG_INTERVAL;
 const PATH_NEW = process.env.PATH_NEW;
 const PATH_READY = process.env.PATH_READY;
 
-// Function to check Redis entries with status:NEW and move files to READY
 const check = async () => {
     try {
         // Get all files tagged with 'NEW' in Redis
@@ -22,28 +22,44 @@ const check = async () => {
 
             // Process each file metadata entry
             for (const fileMetadata of newFilesMetadata) {
-
                 const oldPath = path.join(PATH_NEW, fileMetadata.filename);
                 const newPath = path.join(PATH_READY, fileMetadata.filename);
 
                 try {
+                    // Send the POST request
+                    const image_id = await api.image_post(fileMetadata);
+
+                    if (!image_id) {
+                        console.error(
+                            `Watchdog NEW: No image_id received for ${fileMetadata.filename}, skipping processing.`
+                        );
+                        continue; // Skip the current file if image_id is missing
+                    }
+
+                    // Update Redis with the new image_id
+                    await redisClient.updateFile(fileMetadata.filename, { image_id });
+
                     // Move file from NEW folder to READY folder
                     await fs.rename(oldPath, newPath);
 
+                    // Update Redis status
                     await redisClient.moveFile(fileMetadata.filename, "status:NEW", "status:READY");
 
-                    console.log(`Watchdog NEW: moved ${fileMetadata.filename} to READY folder.`);
-
-                } catch (fileErr) {
-                    console.error(`Watchdog NEW: failed to move ${fileMetadata.filename} to READY folder:`, fileErr);
+                    console.log(
+                        `Watchdog NEW: processed ${fileMetadata.filename}, assigned image_id ${image_id}, and moved to READY folder.`
+                    );
+                } catch (error) {
+                    console.error(
+                        `Watchdog NEW: failed to process ${fileMetadata.filename}, skipping:`,
+                        error.message
+                    );
                 }
             }
         } else {
             console.log('Watchdog NEW: no images found.');
         }
-
     } catch (err) {
-        console.error('Watchdog NEW:', err);
+        console.error('Watchdog NEW:', err.message);
     }
 };
 

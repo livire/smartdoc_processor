@@ -3,18 +3,16 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start:upload_service": "pm2 start server.js --name image_upload_service",
-    "start:watchdog_new": "pm2 start watchdog_new.js",
-    "start:watchdog_ready": "pm2 start watchdog_ready.js",
-    "start:watchdog_processed": "pm2 start watchdog_processed.js",
-    "start:watchdog_classified": "pm2 start watchdog_classified.js",
-    "start:prod": "pm2 start server.js --name server && pm2 start watchdog_new.js --name watchdog_NEW && pm2 start watchdog_ready.js --name watchdog_READY && pm2 start watchdog_processed.js --name watchdog_PROCESSED && pm2 start watchdog_classified.js --name watchdog_CLASSIFIED"
+    "start:upload": "nodemon server.js",
+    "start:watchdog": "concurrently \"nodemon watchdog_new.js\" \"nodemon watchdog_ready.js\" \"nodemon watchdog_processed.js\" \"nodemon watchdog_classified.js\" \"nodemon watchdog_unverified.js\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "axios": "^1.7.7",
+    "concurrently": "^9.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "express-session": "^1.18.1",

@@ -6,6 +6,7 @@ const READY = "status:READY";
 const PROCESSED = "status:PROCESSED";
 const CLASSIFIED = "status:CLASSIFIED";
 const VERIFIED = "status:VERIFIED";
+const UNVERIFIED = "status:UNVERIFIED";
 
 // Setup Redis client
 const redisClient = new Redis({
@@ -34,6 +35,20 @@ redisClient.saveFile = async (fileMetadata) => {
     await redisClient.sadd(`identifier:${fileMetadata.identifier_id}`, fileMetadata.filename);
 };
 
+// Function to update a file's metadata, including adding an image_id
+redisClient.updateFile = async (filename, updateData) => {
+    // Fetch existing metadata
+    const fileMetadata = await redisClient.hgetall(filename);
+
+    // Merge updates into the existing metadata
+    const updatedMetadata = { ...fileMetadata, ...updateData };
+
+    // Save updated metadata back to Redis
+    const updatedFields = Object.entries(updatedMetadata).flat();
+    await redisClient.hset(filename, ...updatedFields);
+};
+
+
 // General function to move a file from one status to another
 redisClient.moveFile = async (filename, fromStatus, toStatus) => {
     // Ensure target status set exists before moving
@@ -48,16 +63,16 @@ redisClient.removeFile = async (filename) => {
     const fileMetadata = await redisClient.hgetall(filename);
     const identifier = fileMetadata.identifier_id;
 
-    // Remove the file from the CLASSIFIED set
-    await redisClient.srem(CLASSIFIED, filename);
+    // Remove the file from the UNVERIFIED set
+    await redisClient.srem(UNVERIFIED, filename);
 
     // Delete the file's metadata
     await redisClient.del(filename);
 
     // Check if the CLASSIFIED set is empty and delete the status tag if necessary
-    const remainingClassifiedFiles = await redisClient.scard(CLASSIFIED);
+    const remainingClassifiedFiles = await redisClient.scard(UNVERIFIED);
     if (remainingClassifiedFiles === 0) {
-        await redisClient.del(CLASSIFIED);
+        await redisClient.del(UNVERIFIED);
     }
 
     // Check and remove identifier tag if empty
@@ -68,7 +83,6 @@ redisClient.removeFile = async (filename) => {
         await redisClient.del(identifierKey);
     }
 };
-
 
 // General function to get all files by status
 redisClient.getFiles = async (status) => {

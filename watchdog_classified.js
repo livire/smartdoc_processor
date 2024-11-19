@@ -3,13 +3,14 @@ const redisClient = require('./redisClient');
 const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
+const api = require('./api');
 
 // Watchdog interval in milliseconds (default to 5 seconds)
 const watchdogInterval = process.env.WATCHDOG_INTERVAL;
 
 // Paths for NEW and READY folders
 const PATH_CLASSIFIED = process.env.PATH_CLASSIFIED;
-const PATH_VERIFIED = process.env.PATH_VERIFIED;
+const PATH_UNVERIFIED = process.env.PATH_UNVERIFIED;
 
 // Function to check Redis entries with status:NEW and move files to READY
 const check = async () => {
@@ -24,16 +25,27 @@ const check = async () => {
             for (const fileMetadata of newFilesMetadata) {
 
                 const oldPath = path.join(PATH_CLASSIFIED, fileMetadata.filename);
-                const newPath = path.join(PATH_VERIFIED, fileMetadata.filename);
+                const newPath = path.join(PATH_UNVERIFIED, fileMetadata.filename);
 
                 try {
+
+                    // Send the POST request
+                    const image_status_id = await api.image_status_post(fileMetadata, 4);
+
+                    if (!image_status_id) {
+                        console.error(
+                            `Watchdog CLASSIFIED: No image_status_id received for ${fileMetadata.filename}, skipping processing.`
+                        );
+                        continue; // Skip the current file if image_id is missing
+                    }
+
                     // Move file from NEW folder to READY folder
                     await fs.rename(oldPath, newPath);
-                    await redisClient.removeFile(fileMetadata.filename);
-                    console.log(`Watchdog CLASSIFIED: moved ${fileMetadata.filename} to verified folder.`);
+                    await redisClient.moveFile(fileMetadata.filename, "status:CLASSIFIED", "status:UNVERIFIED");
+                    console.log(`Watchdog CLASSIFIED: moved ${fileMetadata.filename} to unverified folder.`);
 
                 } catch (fileErr) {
-                    console.error(`Watchdog CLASSIFIED: failed to move ${fileMetadata.filename} to classified folder:`, fileErr);
+                    console.error(`Watchdog CLASSIFIED: failed to move ${fileMetadata.filename} to unverified folder:`, fileErr);
                 }
             }
         } else {

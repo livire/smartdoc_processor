@@ -3,6 +3,7 @@ const redisClient = require('./redisClient');
 const fs = require('fs').promises;
 const path = require('path');
 require('dotenv').config();
+const api = require('./api');
 
 // Watchdog interval in milliseconds (default to 5 seconds)
 const watchdogInterval = process.env.WATCHDOG_INTERVAL;
@@ -27,6 +28,17 @@ const check = async () => {
                 const newPath = path.join(PATH_PROCESSED, fileMetadata.filename);
 
                 try {
+
+                    // Send the POST request
+                    const image_status_id = await api.image_status_post(fileMetadata, 2);
+
+                    if (!image_status_id) {
+                        console.error(
+                            `Watchdog READY: No image_status_id received for ${fileMetadata.filename}, skipping processing.`
+                        );
+                        continue; // Skip the current file if image_id is missing
+                    }
+
                     // Move file from NEW folder to READY folder
                     await fs.rename(oldPath, newPath);
 
